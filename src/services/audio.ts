@@ -71,6 +71,7 @@ export async function extractAndCacheAudio(videoId: string, metadata?: { title?:
 
     await new Promise<void>((resolve, reject) => {
       const proc = spawn('yt-dlp', [
+        '--js-runtimes', 'node',
         '-f', 'ba/b',
         '-x',
         '--audio-format', 'm4a',
@@ -83,13 +84,14 @@ export async function extractAndCacheAudio(videoId: string, metadata?: { title?:
 
       let stderr = '';
       proc.stderr.on('data', (d) => { stderr += d.toString(); });
+      proc.stdout.on('data', (d) => { console.log('[yt-dlp]', d.toString().trim()); });
 
       proc.on('close', (code) => {
         if (code === 0 && fs.existsSync(tempPath)) {
           fs.renameSync(tempPath, outputPath);
           resolve();
         } else {
-          reject(new Error(`yt-dlp process exited with code ${code}: ${stderr}`));
+          reject(new Error(`yt-dlp exited with code ${code}: ${stderr}`));
         }
       });
     });

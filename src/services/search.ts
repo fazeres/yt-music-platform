@@ -64,6 +64,7 @@ export async function searchYouTube(query: string): Promise<SearchResult[]> {
   if (results.length === 0) {
     try {
       const { stdout } = await execFileAsync('yt-dlp', [
+        '--js-runtimes', 'node',
         `ytsearch20:${trimmed}`,
         '--dump-single-json',
         '--flat-playlist',
