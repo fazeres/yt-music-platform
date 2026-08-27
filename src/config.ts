@@ -22,14 +22,14 @@ function createRedisClient(url: string) {
   const client = new (Redis as any)(url, {
     maxRetriesPerRequest: null,
     retryStrategy(times: number) {
-      const delay = Math.min(times * 100, 3000);
-      return delay;
+      if (times > 20) {
+        return null;
+      }
+      return Math.min(times * 200, 5000);
     },
   });
 
-  client.on('error', (err: any) => {
-    console.warn('[Redis] Connection warning/retry:', err?.message || err);
-  });
+  client.on('error', () => {});
 
   return client;
 }

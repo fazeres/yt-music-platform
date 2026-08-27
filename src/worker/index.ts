@@ -7,13 +7,12 @@ import { ResolveJobData } from '../queue.js';
 const connection = new (Redis as any)(config.redisUrl, {
   maxRetriesPerRequest: null,
   retryStrategy(times: number) {
-    return Math.min(times * 100, 3000);
+    if (times > 20) return null;
+    return Math.min(times * 200, 5000);
   },
 });
 
-connection.on('error', (err: any) => {
-  console.warn('[Worker Redis Connection] Warning/retry:', err?.message || err);
-});
+connection.on('error', () => {});
 
 
 export function startWorker() {
