@@ -33,6 +33,12 @@ export const App: React.FC = () => {
     }
   }, [token]);
 
+  const handleApiError = (res: Response) => {
+    if (res.status === 401) {
+      useAuthStore.getState().logout();
+    }
+  };
+
   const fetchPlaylists = async () => {
     if (!token) return;
     try {
@@ -42,6 +48,8 @@ export const App: React.FC = () => {
       if (res.ok) {
         const data = await res.json();
         setPlaylists(data.playlists || []);
+      } else if (res.status === 401) {
+        useAuthStore.getState().logout();
       }
     } catch (err) {
       console.error(err);

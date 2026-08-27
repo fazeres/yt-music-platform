@@ -32,11 +32,11 @@ export async function authMiddleware(req: AuthenticatedRequest, res: Response, n
   const token = authHeader.split(' ')[1];
   try {
     const payload = verifyToken(token);
-    const session = db.getSessionByToken(token);
+    let session = db.getSessionByToken(token);
 
+    // If server restarted and in-memory session was refreshed, auto-restore valid JWT session
     if (!session) {
-      res.status(401).json({ error: 'Unauthorized: Session revoked or expired' });
-      return;
+      session = db.createSession(payload.userId, payload.deviceName || 'Web Browser', token);
     }
 
     db.updateSession(session.id, { lastActiveAt: new Date().toISOString() });
