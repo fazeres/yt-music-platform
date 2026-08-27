@@ -1,17 +1,6 @@
-import { Queue } from 'bullmq';
-import { config } from './config.js';
-import Redis from 'ioredis';
-
-const connection = new (Redis as any)(config.redisUrl, {
-  maxRetriesPerRequest: null,
-  retryStrategy(times: number) {
-    if (times > 20) return null;
-    return Math.min(times * 200, 5000);
-  },
-});
-
-connection.on('error', () => {});
-
+import { memoryStore } from './config.js';
+import { db as jsonDb } from './db.js';
+import { extractAndCacheAudio, ensureCacheDir } from './services/audio.js';
 
 export interface ResolveJobData {
   videoId: string;
@@ -21,19 +10,52 @@ export interface ResolveJobData {
   durationSeconds?: number;
 }
 
-export const resolveQueue = new Queue<ResolveJobData>('audio-resolve', {
-  connection,
-  defaultJobOptions: {
-    attempts: 3,
-    backoff: {
-      type: 'exponential',
-      delay: 2000,
-    },
-    removeOnComplete: 100,
-    removeOnFail: 200,
-  },
-});
+class InMemoryQueue {
+  private queue: ResolveJobData[] = [];
+  private activeCount = 0;
+  private concurrency = 2;
+  private pendingVideoIds = new Set<string>();
 
-export const maintenanceQueue = new Queue('audio-maintenance', {
-  connection,
-});
+  add(data: ResolveJobData): void {
+    if (this.pendingVideoIds.has(data.videoId)) return;
+    this.pendingVideoIds.add(data.videoId);
+    this.queue.push(data);
+    this.processNext();
+  }
+
+  private async processNext(): Promise<void> {
+    if (this.activeCount >= this.concurrency || this.queue.length === 0) {
+      return;
+    }
+
+    const job = this.queue.shift();
+    if (!job) return;
+
+    this.activeCount++;
+    try {
+      console.log(`[Queue] Processing audio extraction for ${job.videoId} (${job.title || ''})`);
+      await extractAndCacheAudio(job.videoId, {
+        title: job.title,
+        artist: job.artist,
+        thumbnailUrl: job.thumbnailUrl,
+        durationSeconds: job.durationSeconds,
+      });
+      console.log(`[Queue] Extraction complete for ${job.videoId}`);
+    } catch (err: any) {
+      console.error(`[Queue] Error extracting ${job.videoId}:`, err.message);
+      jsonDb.upsertTrack({
+        videoId: job.videoId,
+        title: job.title || 'Unavailable',
+        artist: job.artist || 'Unknown',
+        isUnavailable: true,
+      });
+      memoryStore.publish('track:failed', { videoId: job.videoId, error: err.message });
+    } finally {
+      this.activeCount--;
+      this.pendingVideoIds.delete(job.videoId);
+      this.processNext();
+    }
+  }
+}
+
+export const resolveQueue = new InMemoryQueue();

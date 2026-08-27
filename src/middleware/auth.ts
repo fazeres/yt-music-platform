@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import { config, prisma } from '../config.js';
+import { config } from '../config.js';
+import { db } from '../db.js';
 
 export interface AuthPayload {
   userId: string;
@@ -31,21 +32,14 @@ export async function authMiddleware(req: AuthenticatedRequest, res: Response, n
   const token = authHeader.split(' ')[1];
   try {
     const payload = verifyToken(token);
-    
-    const session = await prisma.session.findUnique({
-      where: { token },
-    });
+    const session = db.getSessionByToken(token);
 
     if (!session) {
       res.status(401).json({ error: 'Unauthorized: Session revoked or expired' });
       return;
     }
 
-    await prisma.session.update({
-      where: { id: session.id },
-      data: { lastActiveAt: new Date() },
-    });
-
+    db.updateSession(session.id, { lastActiveAt: new Date().toISOString() });
     req.user = payload;
     next();
   } catch (err) {

@@ -1,14 +1,7 @@
-import { PrismaClient } from '@prisma/client';
-import Redis from 'ioredis';
-import dotenv from 'dotenv';
 import path from 'path';
 
-dotenv.config();
-
 export const config = {
-  port: parseInt(process.env.PORT || '3000', 10),
-  databaseUrl: process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/ytmusic?schema=public',
-  redisUrl: process.env.REDIS_URL || 'redis://localhost:6379',
+  port: parseInt(process.env.PORT || '8080', 10),
   jwtSecret: process.env.JWT_SECRET || 'supersecret_jwt_key_for_dev_12345',
   youtubeApiKey: process.env.YOUTUBE_API_KEY || '',
   audioCacheDir: process.env.AUDIO_CACHE_DIR || path.join(process.cwd(), 'audio_cache'),
@@ -16,30 +9,54 @@ export const config = {
   nodeEnv: process.env.NODE_ENV || 'development',
 };
 
-export const prisma = new PrismaClient({
-  datasources: {
-    db: {
-      url: config.databaseUrl,
-    },
-  },
-});
+// Fast in-memory cache and pubsub replacing external Redis
+class MemoryCacheAndPubSub {
+  private store = new Map<string, { value: string; expiresAt?: number }>();
+  private listeners = new Map<string, Array<(data: any) => void>>();
 
-function createRedisClient(url: string) {
-  const client = new (Redis as any)(url, {
-    maxRetriesPerRequest: null,
-    retryStrategy(times: number) {
-      if (times > 20) {
-        return null;
+  get(key: string): string | null {
+    const item = this.store.get(key);
+    if (!item) return null;
+    if (item.expiresAt && Date.now() > item.expiresAt) {
+      this.store.delete(key);
+      return null;
+    }
+    return item.value;
+  }
+
+  set(key: string, value: string, ttlSeconds?: number): void {
+    const expiresAt = ttlSeconds ? Date.now() + ttlSeconds * 1000 : undefined;
+    this.store.set(key, { value, expiresAt });
+  }
+
+  del(key: string): void {
+    this.store.delete(key);
+  }
+
+  incr(key: string, amount: number = 1): number {
+    const curr = parseInt(this.get(key) || '0', 10);
+    const updated = curr + amount;
+    this.set(key, updated.toString());
+    return updated;
+  }
+
+  subscribe(channel: string, callback: (data: any) => void): void {
+    if (!this.listeners.has(channel)) {
+      this.listeners.set(channel, []);
+    }
+    this.listeners.get(channel)!.push(callback);
+  }
+
+  publish(channel: string, message: any): void {
+    const callbacks = this.listeners.get(channel) || [];
+    for (const cb of callbacks) {
+      try {
+        cb(message);
+      } catch (err) {
+        console.error('[PubSub] Callback error:', err);
       }
-      return Math.min(times * 200, 5000);
-    },
-  });
-
-  client.on('error', () => {});
-
-  return client;
+    }
+  }
 }
 
-export const redis = createRedisClient(config.redisUrl);
-export const redisSub = createRedisClient(config.redisUrl);
-
+export const memoryStore = new MemoryCacheAndPubSub();

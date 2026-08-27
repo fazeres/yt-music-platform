@@ -3,8 +3,8 @@ import { computeRecencyAndFrequencyScores } from '../services/recommendation.js'
 
 describe('Recommendation scoring logic unit tests', () => {
   it('correctly weighs recency and frequency', () => {
-    const now = new Date();
-    const twoDaysAgo = new Date(Date.now() - 48 * 3600 * 1000);
+    const now = new Date().toISOString();
+    const twoDaysAgo = new Date(Date.now() - 48 * 3600 * 1000).toISOString();
 
     const history = [
       {

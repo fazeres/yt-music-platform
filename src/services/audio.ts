@@ -2,7 +2,8 @@ import fs from 'fs';
 import path from 'path';
 import { execFile, spawn } from 'child_process';
 import { promisify } from 'util';
-import { config, prisma, redis } from '../config.js';
+import { config, memoryStore } from '../config.js';
+import { db } from '../db.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -24,26 +25,15 @@ export async function extractAndCacheAudio(videoId: string, metadata?: { title?:
   if (fs.existsSync(outputPath)) {
     const stats = fs.statSync(outputPath);
     if (stats.size > 1024) {
-      await prisma.track.upsert({
-        where: { videoId },
-        update: {
-          cachedPath: outputPath,
-          lastResolvedAt: new Date(),
-          isUnavailable: false,
-          ...(metadata?.title ? { title: metadata.title } : {}),
-          ...(metadata?.artist ? { artist: metadata.artist } : {}),
-          ...(metadata?.thumbnailUrl ? { thumbnailUrl: metadata.thumbnailUrl } : {}),
-          ...(metadata?.durationSeconds ? { durationSeconds: metadata.durationSeconds } : {}),
-        },
-        create: {
-          videoId,
-          title: metadata?.title || 'Unknown Title',
-          artist: metadata?.artist || 'Unknown Artist',
-          thumbnailUrl: metadata?.thumbnailUrl || `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
-          durationSeconds: metadata?.durationSeconds || 0,
-          cachedPath: outputPath,
-          lastResolvedAt: new Date(),
-        },
+      db.upsertTrack({
+        videoId,
+        title: metadata?.title || 'Unknown Title',
+        artist: metadata?.artist || 'Unknown Artist',
+        thumbnailUrl: metadata?.thumbnailUrl,
+        durationSeconds: metadata?.durationSeconds,
+        cachedPath: outputPath,
+        isUnavailable: false,
+        lastResolvedAt: new Date().toISOString(),
       });
       return outputPath;
     }
@@ -104,36 +94,25 @@ export async function extractAndCacheAudio(videoId: string, metadata?: { title?:
       });
     });
 
-    await prisma.track.upsert({
-      where: { videoId },
-      update: {
-        cachedPath: outputPath,
-        lastResolvedAt: new Date(),
-        isUnavailable: false,
-        title: resolvedTitle || 'Unknown Title',
-        artist: resolvedArtist || 'Unknown Artist',
-        thumbnailUrl: resolvedThumb || `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
-        durationSeconds: resolvedDuration || 0,
-      },
-      create: {
-        videoId,
-        title: resolvedTitle || 'Unknown Title',
-        artist: resolvedArtist || 'Unknown Artist',
-        thumbnailUrl: resolvedThumb || `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
-        durationSeconds: resolvedDuration || 0,
-        cachedPath: outputPath,
-        lastResolvedAt: new Date(),
-      },
+    db.upsertTrack({
+      videoId,
+      title: resolvedTitle || 'Unknown Title',
+      artist: resolvedArtist || 'Unknown Artist',
+      thumbnailUrl: resolvedThumb || `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
+      durationSeconds: resolvedDuration || 0,
+      cachedPath: outputPath,
+      isUnavailable: false,
+      lastResolvedAt: new Date().toISOString(),
     });
 
-    await redis.publish('track:ready', JSON.stringify({
+    memoryStore.publish('track:ready', {
       videoId,
       cachedPath: outputPath,
       title: resolvedTitle,
       artist: resolvedArtist,
       durationSeconds: resolvedDuration,
       thumbnailUrl: resolvedThumb,
-    }));
+    });
 
     return outputPath;
   } catch (error: any) {
@@ -183,10 +162,10 @@ export async function evictCacheIfNeeded(maxSizeBytes: number = config.cacheMaxS
       evictedBytes += entry.size;
 
       const videoId = entry.filename.replace('.m4a', '');
-      await prisma.track.updateMany({
-        where: { videoId },
-        data: { cachedPath: null },
-      });
+      const track = db.getTrackByVideoId(videoId);
+      if (track) {
+        db.upsertTrack({ ...track, cachedPath: null });
+      }
     } catch (err) {
       console.error(`Failed to evict file ${entry.filePath}:`, err);
     }

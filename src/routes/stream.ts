@@ -1,6 +1,6 @@
 import { Router, Response } from 'express';
 import fs from 'fs';
-import { prisma } from '../config.js';
+import { db } from '../db.js';
 import { authMiddleware, AuthenticatedRequest } from '../middleware/auth.js';
 import { resolveQueue } from '../queue.js';
 import { getAudioCachePath, getCacheStats } from '../services/audio.js';
@@ -14,7 +14,7 @@ streamRouter.post('/:videoId/resolve', authMiddleware, async (req: Authenticated
 
   const cachedFilePath = getAudioCachePath(videoId);
   if (fs.existsSync(cachedFilePath) && fs.statSync(cachedFilePath).size > 1024) {
-    const track = await prisma.track.findUnique({ where: { videoId } });
+    const track = db.getTrackByVideoId(videoId);
     res.json({
       status: 'ready',
       videoId,
@@ -24,21 +24,13 @@ streamRouter.post('/:videoId/resolve', authMiddleware, async (req: Authenticated
     return;
   }
 
-  // Check if job already active/waiting in queue
-  const existingJob = await resolveQueue.getJob(videoId);
-  if (!existingJob) {
-    await resolveQueue.add(
-      'resolve',
-      {
-        videoId,
-        title,
-        artist,
-        thumbnailUrl,
-        durationSeconds,
-      },
-      { jobId: videoId }
-    );
-  }
+  resolveQueue.add({
+    videoId,
+    title,
+    artist,
+    thumbnailUrl,
+    durationSeconds,
+  });
 
   res.status(202).json({
     status: 'queued',

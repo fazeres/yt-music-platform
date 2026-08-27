@@ -1,4 +1,5 @@
-import { prisma, redis } from '../config.js';
+import { memoryStore } from '../config.js';
+import { db } from '../db.js';
 import { searchYouTube } from './search.js';
 
 export interface ScoredTrack {
@@ -12,14 +13,13 @@ export interface ScoredTrack {
 }
 
 export function computeRecencyAndFrequencyScores(
-  history: Array<{ track: any; playedAt: Date; msPlayed: number }>
+  history: Array<{ track: any; playedAt: string; msPlayed: number }>
 ): Map<string, { track: any; score: number; count: number }> {
   const now = Date.now();
   const trackMap = new Map<string, { track: any; score: number; count: number }>();
 
   for (const item of history) {
     const ageHours = Math.max(0, (now - new Date(item.playedAt).getTime()) / (1000 * 60 * 60));
-    // Exponential recency decay: 1 / (1 + ageHours / 24)
     const recencyWeight = 1 / (1 + ageHours / 24);
     const playScore = 1.0 * recencyWeight;
 
@@ -41,25 +41,16 @@ export function computeRecencyAndFrequencyScores(
 
 export async function generateRecommendations(userId: string): Promise<ScoredTrack[]> {
   const cacheKey = `recommendations:${userId}`;
-  const cached = await redis.get(cacheKey);
+  const cached = memoryStore.get(cacheKey);
   if (cached) {
     return JSON.parse(cached);
   }
 
-  const history = await prisma.playHistory.findMany({
-    where: { userId },
-    orderBy: { playedAt: 'desc' },
-    take: 100,
-    include: { track: true },
-  });
-
-  const favorites = await prisma.favorite.findMany({
-    where: { userId },
-    include: { track: true },
-  });
+  const history = db.getHistory(userId, 100);
+  const favorites = db.getFavorites(userId);
 
   if (history.length === 0 && favorites.length === 0) {
-    const defaultSearch = await searchYouTube('Top global hits music 2024');
+    const defaultSearch = await searchYouTube('Top hits music 2024');
     return defaultSearch.slice(0, 15).map((t, idx) => ({
       ...t,
       score: 10 - idx * 0.5,
@@ -69,21 +60,19 @@ export async function generateRecommendations(userId: string): Promise<ScoredTra
 
   const scoredMap = computeRecencyAndFrequencyScores(history);
 
-  // Bonus for favorites
   for (const fav of favorites) {
-    const existing = scoredMap.get(fav.track.videoId);
+    const existing = scoredMap.get(fav.videoId);
     if (existing) {
       existing.score += 3.0;
     } else {
-      scoredMap.set(fav.track.videoId, {
-        track: fav.track,
+      scoredMap.set(fav.videoId, {
+        track: fav,
         score: 3.0,
         count: 1,
       });
     }
   }
 
-  // Top artists from user history
   const topArtistsMap = new Map<string, number>();
   for (const entry of scoredMap.values()) {
     const artist = entry.track.artist;
@@ -98,7 +87,6 @@ export async function generateRecommendations(userId: string): Promise<ScoredTra
   const recommendations: ScoredTrack[] = [];
   const seenVideoIds = new Set<string>();
 
-  // Add top scored tracks from user history
   const topHistoryTracks = Array.from(scoredMap.values())
     .sort((a, b) => b.score - a.score)
     .slice(0, 5);
@@ -116,7 +104,6 @@ export async function generateRecommendations(userId: string): Promise<ScoredTra
     });
   }
 
-  // Query related songs for top artists
   for (const artist of topArtists) {
     try {
       const results = await searchYouTube(`${artist} songs`);
@@ -136,9 +123,7 @@ export async function generateRecommendations(userId: string): Promise<ScoredTra
   }
 
   recommendations.sort((a, b) => b.score - a.score);
-
-  // Cache for 3 hours
-  await redis.set(cacheKey, JSON.stringify(recommendations), 'EX', 10800);
+  memoryStore.set(cacheKey, JSON.stringify(recommendations), 10800);
 
   return recommendations;
 }

@@ -1,0 +1,91 @@
+{
+  "users": [
+    {
+      "id": "default-user-id",
+      "email": "user@example.com",
+      "passwordHash": "$2a$10$wN1Gz3Z7h5wGz7c7I3D5t.Y6l9YqM6O4kPz7b3b7h4o0V0aZ6N5zG",
+      "createdAt": "2026-08-27T13:55:15.085Z"
+    }
+  ],
+  "sessions": [
+    {
+      "id": "sess_1787838915223_74ecxs",
+      "userId": "default-user-id",
+      "deviceName": "Test Device",
+      "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJkZWZhdWx0LXVzZXItaWQiLCJlbWFpbCI6InVzZXJAZXhhbXBsZS5jb20iLCJzZXNzaW9uSWQiOiJzZXNzXzE3ODc4Mzg5MTUyMjNfNzRlY3hzIiwiZGV2aWNlTmFtZSI6IlRlc3QgRGV2aWNlIiwiaWF0IjoxNzg3ODM4OTE1LCJleHAiOjE3ODg0NDM3MTV9.mVR7vQcIDXvqRxPRkWdR4nEKR7FMxwPOupND5eX2gjM",
+      "lastActiveAt": "2026-08-27T13:55:15.293Z"
+    },
+    {
+      "id": "sess_1787838915242_pdv0t6",
+      "userId": "default-user-id",
+      "deviceName": "Integration Device",
+      "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJkZWZhdWx0LXVzZXItaWQiLCJlbWFpbCI6InVzZXJAZXhhbXBsZS5jb20iLCJzZXNzaW9uSWQiOiJzZXNzXzE3ODc4Mzg5MTUyNDJfcGR2MHQ2IiwiZGV2aWNlTmFtZSI6IkludGVncmF0aW9uIERldmljZSIsImlhdCI6MTc4NzgzODkxNSwiZXhwIjoxNzg4NDQzNzE1fQ.RpzdxyYcgnwS0YZH0V9V2Tbee6Ywn02S8iMsIbP6UKU",
+      "lastActiveAt": "2026-08-27T13:55:15.243Z"
+    }
+  ],
+  "tracks": [
+    {
+      "id": "trk_1787838915251_ovzqcr",
+      "videoId": "test_vid_1",
+      "title": "Test Song 1",
+      "artist": "Test Artist",
+      "thumbnailUrl": "https://i.ytimg.com/vi/test_vid_1/hqdefault.jpg",
+      "durationSeconds": 180,
+      "cachedPath": null,
+      "isUnavailable": false,
+      "lastResolvedAt": "2026-08-27T13:55:15.251Z",
+      "createdAt": "2026-08-27T13:55:15.251Z"
+    },
+    {
+      "id": "trk_1787838915276_r4tyso",
+      "videoId": "sim_vid_123",
+      "title": "Simulated Audio",
+      "artist": "Simulated Artist",
+      "durationSeconds": 200,
+      "cachedPath": null,
+      "isUnavailable": false,
+      "lastResolvedAt": "2026-08-27T13:55:15.276Z",
+      "createdAt": "2026-08-27T13:55:15.276Z"
+    }
+  ],
+  "playlists": [],
+  "history": [
+    {
+      "id": "hist_1787838915287_d7tnet",
+      "userId": "default-user-id",
+      "trackId": "trk_1787838915276_r4tyso",
+      "track": {
+        "id": "trk_1787838915276_r4tyso",
+        "videoId": "sim_vid_123",
+        "title": "Simulated Audio",
+        "artist": "Simulated Artist",
+        "durationSeconds": 200,
+        "cachedPath": null,
+        "isUnavailable": false,
+        "lastResolvedAt": "2026-08-27T13:55:15.276Z",
+        "createdAt": "2026-08-27T13:55:15.276Z"
+      },
+      "playedAt": "2026-08-27T13:55:15.287Z",
+      "msPlayed": 120000
+    }
+  ],
+  "favorites": [
+    {
+      "id": "fav_1787838915277_y23bjt",
+      "userId": "default-user-id",
+      "trackId": "trk_1787838915276_r4tyso",
+      "track": {
+        "id": "trk_1787838915276_r4tyso",
+        "videoId": "sim_vid_123",
+        "title": "Simulated Audio",
+        "artist": "Simulated Artist",
+        "durationSeconds": 200,
+        "cachedPath": null,
+        "isUnavailable": false,
+        "lastResolvedAt": "2026-08-27T13:55:15.276Z",
+        "createdAt": "2026-08-27T13:55:15.276Z"
+      },
+      "favoritedAt": "2026-08-27T13:55:15.277Z"
+    }
+  ]
+}

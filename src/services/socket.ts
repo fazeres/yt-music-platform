@@ -1,6 +1,6 @@
 import { Server as SocketIOServer, Socket } from 'socket.io';
 import { verifyToken, AuthPayload } from '../middleware/auth.js';
-import { redisSub } from '../config.js';
+import { memoryStore } from '../config.js';
 
 export interface PlaybackState {
   userId: string;
@@ -25,26 +25,15 @@ export interface PlaybackState {
   }>;
 }
 
-// Memory store for user playback state (can also be mirrored to Redis)
 const userPlaybackStates = new Map<string, PlaybackState>();
 
 export function setupSocketServer(io: SocketIOServer) {
-  // Subscribe to Redis events (track:ready, track:failed)
-  redisSub.subscribe('track:ready', 'track:failed', (err: any) => {
-    if (err) console.error('Redis subscription error:', err);
+  memoryStore.subscribe('track:ready', (data) => {
+    io.emit('track:ready', data);
   });
 
-  redisSub.on('message', (channel: string, message: string) => {
-    try {
-      const data = JSON.parse(message);
-      if (channel === 'track:ready') {
-        io.emit('track:ready', data);
-      } else if (channel === 'track:failed') {
-        io.emit('track:failed', data);
-      }
-    } catch (e) {
-      console.error('Error forwarding redis pubsub message:', e);
-    }
+  memoryStore.subscribe('track:failed', (data) => {
+    io.emit('track:failed', data);
   });
 
   // Socket authentication middleware
@@ -67,9 +56,6 @@ export function setupSocketServer(io: SocketIOServer) {
     const userRoom = `user:${user.userId}`;
     socket.join(userRoom);
 
-    console.log(`[Socket] Device connected: ${user.deviceName} (${user.sessionId}) for user ${user.userId}`);
-
-    // Send initial user playback state
     let state = userPlaybackStates.get(user.userId);
     if (!state) {
       state = {
@@ -87,7 +73,6 @@ export function setupSocketServer(io: SocketIOServer) {
 
     socket.emit('playback:state', state);
 
-    // Request active player role
     socket.on('playback:transfer', ({ deviceId, deviceName }) => {
       const currentState = userPlaybackStates.get(user.userId);
       if (currentState) {
@@ -98,7 +83,6 @@ export function setupSocketServer(io: SocketIOServer) {
       }
     });
 
-    // Playback control update (play, pause, seek, track change, queue change)
     socket.on('playback:update', (updateData: Partial<PlaybackState>) => {
       let currentState = userPlaybackStates.get(user.userId);
       if (!currentState) {
@@ -114,7 +98,6 @@ export function setupSocketServer(io: SocketIOServer) {
         };
       }
 
-      // If playing on this device, automatically take active role
       if (updateData.isPlaying) {
         currentState.activeDeviceId = user.sessionId;
         currentState.activeDeviceName = user.deviceName;
@@ -125,13 +108,7 @@ export function setupSocketServer(io: SocketIOServer) {
       });
 
       userPlaybackStates.set(user.userId, currentState);
-
-      // Broadcast new state to ALL devices of the user
       io.to(userRoom).emit('playback:state', currentState);
-    });
-
-    socket.on('disconnect', () => {
-      console.log(`[Socket] Device disconnected: ${user.deviceName} (${user.sessionId})`);
     });
   });
 }

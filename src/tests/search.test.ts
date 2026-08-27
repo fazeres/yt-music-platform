@@ -1,10 +1,10 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { trackQuota, getQuotaUsage } from '../services/search.js';
-import { redis } from '../config.js';
+import { memoryStore } from '../config.js';
 
 describe('Search & Quota unit tests', () => {
-  beforeEach(async () => {
-    await redis.del('youtube:daily_quota_used');
+  beforeEach(() => {
+    memoryStore.del('youtube:daily_quota_used');
   });
 
   it('tracks quota increments and calculates remaining quota', async () => {

@@ -12,7 +12,6 @@ import { streamRouter, cacheRouter } from './routes/stream.js';
 import { libraryRouter } from './routes/library.js';
 import { recommendationRouter } from './routes/recommendation.js';
 import { setupSocketServer } from './services/socket.js';
-import { startWorker } from './worker/index.js';
 import { openApiSpec } from './openapi.js';
 
 export const app = express();
@@ -55,7 +54,6 @@ if (fs.existsSync(frontendDist)) {
   });
 }
 
-
 // Socket.IO
 export const io = new SocketIOServer(server, {
   cors: { origin: '*', methods: ['GET', 'POST'] },
@@ -64,11 +62,9 @@ export const io = new SocketIOServer(server, {
 setupSocketServer(io);
 
 if (process.env.NODE_ENV !== 'test') {
-  // Start worker inside process if running monolithic or dev mode
-  startWorker();
-
-  server.listen(config.port, '0.0.0.0', () => {
-    console.log(`[Server] Running on http://0.0.0.0:${config.port}`);
-    console.log(`[Server] API Docs available at http://0.0.0.0:${config.port}/api-docs`);
+  const PORT = process.env.PORT || config.port;
+  server.listen(Number(PORT), '0.0.0.0', () => {
+    console.log(`[Server] Running on http://0.0.0.0:${PORT}`);
+    console.log(`[Server] API Docs available at http://0.0.0.0:${PORT}/api-docs`);
   });
 }

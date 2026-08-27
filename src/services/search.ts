@@ -1,6 +1,6 @@
 import { execFile } from 'child_process';
 import { promisify } from 'util';
-import { redis, config } from '../config.js';
+import { memoryStore, config } from '../config.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -16,19 +16,11 @@ const QUOTA_KEY = 'youtube:daily_quota_used';
 const DAILY_LIMIT = 10000;
 
 export async function trackQuota(units: number = 100): Promise<number> {
-  const count = await redis.incrby(QUOTA_KEY, units);
-  const ttl = await redis.ttl(QUOTA_KEY);
-  if (ttl === -1) {
-    const now = new Date();
-    const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
-    const secondsRemaining = Math.floor((endOfDay.getTime() - now.getTime()) / 1000);
-    await redis.expire(QUOTA_KEY, Math.max(secondsRemaining, 3600));
-  }
-  return count;
+  return memoryStore.incr(QUOTA_KEY, units);
 }
 
 export async function getQuotaUsage(): Promise<{ used: number; limit: number; remaining: number }> {
-  const usedStr = await redis.get(QUOTA_KEY);
+  const usedStr = memoryStore.get(QUOTA_KEY);
   const used = usedStr ? parseInt(usedStr, 10) : 0;
   return {
     used,
@@ -42,7 +34,7 @@ export async function searchYouTube(query: string): Promise<SearchResult[]> {
   if (!trimmed) return [];
 
   const cacheKey = `search:${trimmed.toLowerCase()}`;
-  const cached = await redis.get(cacheKey);
+  const cached = memoryStore.get(cacheKey);
   if (cached) {
     return JSON.parse(cached);
   }
@@ -94,7 +86,7 @@ export async function searchYouTube(query: string): Promise<SearchResult[]> {
   }
 
   if (results.length > 0) {
-    await redis.set(cacheKey, JSON.stringify(results), 'EX', 600);
+    memoryStore.set(cacheKey, JSON.stringify(results), 600);
   }
 
   return results;
