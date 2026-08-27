@@ -91,6 +91,20 @@
       "deviceName": "Integration Device",
       "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJkZWZhdWx0LXVzZXItaWQiLCJlbWFpbCI6InVzZXJAZXhhbXBsZS5jb20iLCJzZXNzaW9uSWQiOiJzZXNzXzE3ODc4NDIwOTY0MDVfNHh0YjgwIiwiZGV2aWNlTmFtZSI6IkludGVncmF0aW9uIERldmljZSIsImlhdCI6MTc4Nzg0MjA5NiwiZXhwIjoxNzg4NDQ2ODk2fQ.lB39f5v7NEOHsC7h1USnEU2Hm4mEndA5VgVkliOBC-c",
       "lastActiveAt": "2026-08-27T14:48:16.406Z"
+    },
+    {
+      "id": "sess_1787842951110_olkrh6",
+      "userId": "default-user-id",
+      "deviceName": "Test Device",
+      "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJkZWZhdWx0LXVzZXItaWQiLCJlbWFpbCI6InVzZXJAZXhhbXBsZS5jb20iLCJzZXNzaW9uSWQiOiJzZXNzXzE3ODc4NDI5NTExMTBfb2xrcmg2IiwiZGV2aWNlTmFtZSI6IlRlc3QgRGV2aWNlIiwiaWF0IjoxNzg3ODQyOTUxLCJleHAiOjE3ODg0NDc3NTF9.cOdSyBtL14eeV9Iutwki7sfsmx9vrPNYX3zOnGQMjew",
+      "lastActiveAt": "2026-08-27T15:02:31.181Z"
+    },
+    {
+      "id": "sess_1787842951131_xdudf9",
+      "userId": "default-user-id",
+      "deviceName": "Integration Device",
+      "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJkZWZhdWx0LXVzZXItaWQiLCJlbWFpbCI6InVzZXJAZXhhbXBsZS5jb20iLCJzZXNzaW9uSWQiOiJzZXNzXzE3ODc4NDI5NTExMzFfeGR1ZGY5IiwiZGV2aWNlTmFtZSI6IkludGVncmF0aW9uIERldmljZSIsImlhdCI6MTc4Nzg0Mjk1MSwiZXhwIjoxNzg4NDQ3NzUxfQ.322jJd0luZcvRbGJWqRtK6a87N8V1qj5Sp1OsSAKgcg",
+      "lastActiveAt": "2026-08-27T15:02:31.132Z"
     }
   ],
   "tracks": [
@@ -225,6 +239,24 @@
         "createdAt": "2026-08-27T13:55:15.276Z"
       },
       "playedAt": "2026-08-27T14:48:16.453Z",
+      "msPlayed": 120000
+    },
+    {
+      "id": "hist_1787842951177_vwqfe4",
+      "userId": "default-user-id",
+      "trackId": "trk_1787838915276_r4tyso",
+      "track": {
+        "id": "trk_1787838915276_r4tyso",
+        "videoId": "sim_vid_123",
+        "title": "Simulated Audio",
+        "artist": "Simulated Artist",
+        "durationSeconds": 200,
+        "cachedPath": null,
+        "isUnavailable": false,
+        "lastResolvedAt": "2026-08-27T13:55:15.276Z",
+        "createdAt": "2026-08-27T13:55:15.276Z"
+      },
+      "playedAt": "2026-08-27T15:02:31.177Z",
       "msPlayed": 120000
     }
   ],

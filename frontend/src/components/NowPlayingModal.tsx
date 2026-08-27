@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChevronDown, Play, Pause, SkipBack, SkipForward, Volume2, Sparkles } from 'lucide-react';
+import { ChevronDown, Play, Pause, SkipBack, SkipForward, Volume2, Sparkles, Download } from 'lucide-react';
 import { usePlayerStore } from '../store';
 
 export const NowPlayingModal: React.FC<{
@@ -65,6 +65,14 @@ export const NowPlayingModal: React.FC<{
             <h1 className="text-2xl font-bold text-white truncate mb-1">{currentTrack.title}</h1>
             <p className="text-lg text-[#b3b3b3] truncate">{currentTrack.artist}</p>
           </div>
+          <a
+            href={`/api/stream/${currentTrack.videoId}/download`}
+            download
+            className="p-3 bg-white/10 hover:bg-white/20 text-white rounded-full transition flex items-center justify-center"
+            title="Download song"
+          >
+            <Download className="w-5 h-5" />
+          </a>
         </div>
 
         {/* Progress Slider */}

@@ -74,7 +74,7 @@ export async function extractAndCacheAudio(videoId: string, metadata?: { title?:
     await new Promise<void>((resolve, reject) => {
       const proc = spawn('yt-dlp', [
         '--js-runtimes', 'node',
-        '-f', 'ba/b',
+        '-f', 'bestaudio/best',
         '-o', rawDownloadPath,
         '--no-playlist',
         '--no-warnings',
@@ -85,22 +85,35 @@ export async function extractAndCacheAudio(videoId: string, metadata?: { title?:
       proc.stderr.on('data', (d) => { stderr += d.toString(); });
 
       proc.on('close', (code) => {
-        if (code === 0 && fs.existsSync(rawDownloadPath)) {
+        // Find if file exists or yt-dlp created filename with extension
+        if (fs.existsSync(rawDownloadPath)) {
           resolve();
         } else {
-          reject(new Error(`yt-dlp download failed with code ${code}: ${stderr}`));
+          // Check if any matching raw file exists in dir
+          const files = fs.readdirSync(config.audioCacheDir);
+          const found = files.find(f => f.startsWith(`${videoId}.raw`));
+          if (found) {
+            fs.renameSync(path.join(config.audioCacheDir, found), rawDownloadPath);
+            resolve();
+          } else if (code === 0) {
+            resolve();
+          } else {
+            reject(new Error(`yt-dlp download failed with code ${code}: ${stderr}`));
+          }
         }
       });
     });
 
-    // Step 2: Direct transcode with ffmpeg to m4a (AAC)
+    // Step 2: High Quality Transcode with ffmpeg (256kbps high-fidelity AAC with faststart for instant seek)
     await new Promise<void>((resolve, reject) => {
       const ffProc = spawn('ffmpeg', [
         '-y',
         '-i', rawDownloadPath,
         '-vn',
         '-c:a', 'aac',
-        '-b:a', '192k',
+        '-b:a', '256k',
+        '-ar', '48000',
+        '-movflags', '+faststart',
         outputPath,
       ]);
 

@@ -210,6 +210,11 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
     const { currentTrack, isPlaying, queue, socket } = get();
     set({ progressSeconds: seconds });
 
+    const audioElement = document.querySelector('audio');
+    if (audioElement && !isNaN(seconds)) {
+      audioElement.currentTime = seconds;
+    }
+
     if (socket && currentTrack) {
       socket.emit('playback:update', {
         isPlaying,

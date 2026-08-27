@@ -91,6 +91,26 @@ streamRouter.get('/:videoId', async (req, res): Promise<void> => {
   }
 });
 
+// Download audio file directly
+streamRouter.get('/:videoId/download', async (req, res): Promise<void> => {
+  const { videoId } = req.params;
+  const filePath = getAudioCachePath(videoId);
+
+  if (!fs.existsSync(filePath) || fs.statSync(filePath).size < 1024) {
+    try {
+      await extractAndCacheAudio(videoId);
+    } catch (err: any) {
+      res.status(500).json({ error: `Audio extraction failed: ${err.message}` });
+      return;
+    }
+  }
+
+  const track = db.getTrackByVideoId(videoId);
+  const filename = `${(track?.title || videoId).replace(/[^a-zA-Z0-9_-]/g, '_')}.m4a`;
+
+  res.download(filePath, filename);
+});
+
 export const cacheRouter = Router();
 
 cacheRouter.get('/stats', authMiddleware, async (_req: AuthenticatedRequest, res: Response): Promise<void> => {

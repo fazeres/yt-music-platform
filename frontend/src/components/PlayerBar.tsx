@@ -10,6 +10,7 @@ import {
   ListMusic,
   Maximize2,
   Sparkles,
+  Download,
 } from 'lucide-react';
 import { usePlayerStore, useAuthStore } from '../store';
 import { Track } from '../types';
@@ -129,6 +130,15 @@ export const PlayerBar: React.FC<{
             </button>
           )}
         </div>
+
+        <a
+          href={`/api/stream/${currentTrack.videoId}/download`}
+          download
+          className="text-[#b3b3b3] hover:text-white transition p-1"
+          title="Download audio"
+        >
+          <Download className="w-4 h-4" />
+        </a>
 
         <button onClick={onOpenQueue} className="text-[#b3b3b3] hover:text-white transition">
           <ListMusic className="w-5 h-5" />
