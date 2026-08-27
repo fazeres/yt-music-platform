@@ -20,7 +20,7 @@ export function getAudioCachePath(videoId: string): string {
 export async function extractAndCacheAudio(videoId: string, metadata?: { title?: string; artist?: string; thumbnailUrl?: string; durationSeconds?: number }): Promise<string> {
   await ensureCacheDir();
   const outputPath = getAudioCachePath(videoId);
-  const rawDownloadPath = path.join(config.audioCacheDir, `${videoId}.raw.webm`);
+  const rawTemplate = path.join(config.audioCacheDir, `${videoId}.raw.%(ext)s`);
 
   if (fs.existsSync(outputPath)) {
     const stats = fs.statSync(outputPath);
@@ -50,6 +50,7 @@ export async function extractAndCacheAudio(videoId: string, metadata?: { title?:
     if (!resolvedTitle || !resolvedArtist || !resolvedDuration) {
       try {
         const { stdout: infoJson } = await execFileAsync('yt-dlp', [
+          '--remote-components', 'ejs:github',
           '--js-runtimes', 'node',
           '--dump-single-json',
           '--no-warnings',
@@ -66,39 +67,44 @@ export async function extractAndCacheAudio(videoId: string, metadata?: { title?:
       }
     }
 
-    if (fs.existsSync(rawDownloadPath)) {
-      try { fs.unlinkSync(rawDownloadPath); } catch {}
+    // Clean old raw files
+    const existingRaw = fs.readdirSync(config.audioCacheDir).filter(f => f.startsWith(`${videoId}.raw.`));
+    for (const f of existingRaw) {
+      try { fs.unlinkSync(path.join(config.audioCacheDir, f)); } catch {}
     }
 
     // Step 1: Download raw audio using yt-dlp
+    let downloadedFilePath = '';
     await new Promise<void>((resolve, reject) => {
       const proc = spawn('yt-dlp', [
+        '--remote-components', 'ejs:github',
         '--js-runtimes', 'node',
-        '-f', 'bestaudio/best',
-        '-o', rawDownloadPath,
+        '-f', 'ba/b',
+        '--print', 'after_move:filepath',
+        '-o', rawTemplate,
         '--no-playlist',
         '--no-warnings',
         url,
       ]);
 
+      let stdout = '';
       let stderr = '';
+      proc.stdout.on('data', (d) => { stdout += d.toString(); });
       proc.stderr.on('data', (d) => { stderr += d.toString(); });
 
       proc.on('close', (code) => {
-        // Find if file exists or yt-dlp created filename with extension
-        if (fs.existsSync(rawDownloadPath)) {
+        const printedPath = stdout.trim().split('\n').pop()?.trim();
+        if (printedPath && fs.existsSync(printedPath)) {
+          downloadedFilePath = printedPath;
           resolve();
         } else {
-          // Check if any matching raw file exists in dir
-          const files = fs.readdirSync(config.audioCacheDir);
-          const found = files.find(f => f.startsWith(`${videoId}.raw`));
+          // Fallback search in directory
+          const found = fs.readdirSync(config.audioCacheDir).find(f => f.startsWith(`${videoId}.raw.`));
           if (found) {
-            fs.renameSync(path.join(config.audioCacheDir, found), rawDownloadPath);
-            resolve();
-          } else if (code === 0) {
+            downloadedFilePath = path.join(config.audioCacheDir, found);
             resolve();
           } else {
-            reject(new Error(`yt-dlp download failed with code ${code}: ${stderr}`));
+            reject(new Error(`yt-dlp download failed (code ${code}): ${stderr}`));
           }
         }
       });
@@ -108,7 +114,7 @@ export async function extractAndCacheAudio(videoId: string, metadata?: { title?:
     await new Promise<void>((resolve, reject) => {
       const ffProc = spawn('ffmpeg', [
         '-y',
-        '-i', rawDownloadPath,
+        '-i', downloadedFilePath,
         '-vn',
         '-c:a', 'aac',
         '-b:a', '256k',
@@ -121,11 +127,11 @@ export async function extractAndCacheAudio(videoId: string, metadata?: { title?:
       ffProc.stderr.on('data', (d) => { ffErr += d.toString(); });
 
       ffProc.on('close', (code) => {
-        try { fs.unlinkSync(rawDownloadPath); } catch {}
-        if (code === 0 && fs.existsSync(outputPath)) {
+        try { if (fs.existsSync(downloadedFilePath)) fs.unlinkSync(downloadedFilePath); } catch {}
+        if (code === 0 && fs.existsSync(outputPath) && fs.statSync(outputPath).size > 1024) {
           resolve();
         } else {
-          reject(new Error(`ffmpeg conversion failed with code ${code}: ${ffErr}`));
+          reject(new Error(`ffmpeg conversion failed (code ${code}): ${ffErr}`));
         }
       });
     });
@@ -152,9 +158,6 @@ export async function extractAndCacheAudio(videoId: string, metadata?: { title?:
 
     return outputPath;
   } catch (error: any) {
-    if (fs.existsSync(rawDownloadPath)) {
-      try { fs.unlinkSync(rawDownloadPath); } catch {}
-    }
     console.error(`Audio extraction failed for ${videoId}:`, error);
     throw error;
   }

@@ -108,7 +108,9 @@ streamRouter.get('/:videoId/download', async (req, res): Promise<void> => {
   const track = db.getTrackByVideoId(videoId);
   const filename = `${(track?.title || videoId).replace(/[^a-zA-Z0-9_-]/g, '_')}.m4a`;
 
-  res.download(filePath, filename);
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  res.setHeader('Content-Type', 'audio/mp4');
+  fs.createReadStream(filePath).pipe(res);
 });
 
 export const cacheRouter = Router();
