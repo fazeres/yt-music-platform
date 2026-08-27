@@ -5,10 +5,17 @@ RUN apk add --no-cache ffmpeg python3 py3-pip curl openssl && \
 
 WORKDIR /app
 
+# Install frontend dependencies and build static assets
+COPY frontend/package*.json frontend/pnpm-lock.yaml* ./frontend/
+RUN npm install -g pnpm@9 && cd frontend && pnpm install
+
+COPY frontend ./frontend
+RUN cd frontend && pnpm build
+
+# Install backend dependencies and build
 COPY package*.json pnpm-lock.yaml* ./
 COPY prisma ./prisma/
-
-RUN npm install -g pnpm@9 && pnpm install
+RUN pnpm install
 
 COPY . .
 

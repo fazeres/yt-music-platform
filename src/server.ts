@@ -1,6 +1,8 @@
 import express from 'express';
 import http from 'http';
 import cors from 'cors';
+import path from 'path';
+import fs from 'fs';
 import swaggerUi from 'swagger-ui-express';
 import { Server as SocketIOServer } from 'socket.io';
 import { config } from './config.js';
@@ -31,7 +33,7 @@ app.get('/api/health', (_req, res) => {
   });
 });
 
-// Mount Routes
+// Mount API Routes
 app.use('/api/auth', authRouter);
 app.use('/api/search', searchRouter);
 app.use('/api/admin', adminRouter);
@@ -40,6 +42,19 @@ app.use('/api/stream', streamRouter);
 app.use('/api/library', libraryRouter);
 app.use('/api/cache', cacheRouter);
 app.use('/api/recommendations', recommendationRouter);
+
+// Serve Frontend SPA
+const frontendDist = path.join(process.cwd(), 'frontend', 'dist');
+if (fs.existsSync(frontendDist)) {
+  app.use(express.static(frontendDist));
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api') || req.path.startsWith('/socket.io')) {
+      return next();
+    }
+    res.sendFile(path.join(frontendDist, 'index.html'));
+  });
+}
+
 
 // Socket.IO
 export const io = new SocketIOServer(server, {
