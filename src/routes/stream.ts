@@ -3,7 +3,7 @@ import fs from 'fs';
 import { db } from '../db.js';
 import { authMiddleware, AuthenticatedRequest } from '../middleware/auth.js';
 import { resolveQueue } from '../queue.js';
-import { getAudioCachePath, getCacheStats } from '../services/audio.js';
+import { getAudioCachePath, getCacheStats, extractAndCacheAudio } from '../services/audio.js';
 
 export const streamRouter = Router();
 
@@ -39,14 +39,20 @@ streamRouter.post('/:videoId/resolve', authMiddleware, async (req: Authenticated
   });
 });
 
-// Stream audio with HTTP Range support
+// Stream audio with HTTP Range support (auto-extracts immediately if not yet cached)
 streamRouter.get('/:videoId', async (req, res): Promise<void> => {
   const { videoId } = req.params;
   const filePath = getAudioCachePath(videoId);
 
-  if (!fs.existsSync(filePath)) {
-    res.status(404).json({ error: 'Audio not cached yet. Call POST /api/tracks/:videoId/resolve first.' });
-    return;
+  if (!fs.existsSync(filePath) || fs.statSync(filePath).size < 1024) {
+    try {
+      console.log(`[Stream] Audio not yet cached for ${videoId}. Extracting on-demand...`);
+      await extractAndCacheAudio(videoId);
+    } catch (err: any) {
+      console.error(`[Stream] On-demand extraction failed for ${videoId}:`, err.message);
+      res.status(500).json({ error: `Audio extraction failed: ${err.message}` });
+      return;
+    }
   }
 
   const stat = fs.statSync(filePath);

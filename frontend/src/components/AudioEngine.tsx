@@ -108,7 +108,15 @@ export const AudioEngine: React.FC = () => {
         if (audioCtxRef.current?.state === 'suspended') {
           audioCtxRef.current.resume();
         }
-        audio.play().catch((err) => console.warn('Playback play failed:', err));
+        audio.play().catch((err) => {
+          // If 404 because still extracting, retry in 1.5s
+          setTimeout(() => {
+            if (usePlayerStore.getState().isPlaying) {
+              audio.load();
+              audio.play().catch(() => {});
+            }
+          }, 1500);
+        });
       } else {
         audio.pause();
       }
