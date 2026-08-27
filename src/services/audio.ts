@@ -20,7 +20,7 @@ export function getAudioCachePath(videoId: string): string {
 export async function extractAndCacheAudio(videoId: string, metadata?: { title?: string; artist?: string; thumbnailUrl?: string; durationSeconds?: number }): Promise<string> {
   await ensureCacheDir();
   const outputPath = getAudioCachePath(videoId);
-  const tempPath = path.join(config.audioCacheDir, `${videoId}.temp.m4a`);
+  const rawDownloadPath = path.join(config.audioCacheDir, `${videoId}.raw.webm`);
 
   if (fs.existsSync(outputPath)) {
     const stats = fs.statSync(outputPath);
@@ -50,6 +50,7 @@ export async function extractAndCacheAudio(videoId: string, metadata?: { title?:
     if (!resolvedTitle || !resolvedArtist || !resolvedDuration) {
       try {
         const { stdout: infoJson } = await execFileAsync('yt-dlp', [
+          '--js-runtimes', 'node',
           '--dump-single-json',
           '--no-warnings',
           url,
@@ -65,18 +66,16 @@ export async function extractAndCacheAudio(videoId: string, metadata?: { title?:
       }
     }
 
-    if (fs.existsSync(tempPath)) {
-      try { fs.unlinkSync(tempPath); } catch {}
+    if (fs.existsSync(rawDownloadPath)) {
+      try { fs.unlinkSync(rawDownloadPath); } catch {}
     }
 
+    // Step 1: Download raw audio using yt-dlp
     await new Promise<void>((resolve, reject) => {
       const proc = spawn('yt-dlp', [
         '--js-runtimes', 'node',
         '-f', 'ba/b',
-        '-x',
-        '--audio-format', 'm4a',
-        '--audio-quality', '0',
-        '-o', tempPath,
+        '-o', rawDownloadPath,
         '--no-playlist',
         '--no-warnings',
         url,
@@ -84,14 +83,36 @@ export async function extractAndCacheAudio(videoId: string, metadata?: { title?:
 
       let stderr = '';
       proc.stderr.on('data', (d) => { stderr += d.toString(); });
-      proc.stdout.on('data', (d) => { console.log('[yt-dlp]', d.toString().trim()); });
 
       proc.on('close', (code) => {
-        if (code === 0 && fs.existsSync(tempPath)) {
-          fs.renameSync(tempPath, outputPath);
+        if (code === 0 && fs.existsSync(rawDownloadPath)) {
           resolve();
         } else {
-          reject(new Error(`yt-dlp exited with code ${code}: ${stderr}`));
+          reject(new Error(`yt-dlp download failed with code ${code}: ${stderr}`));
+        }
+      });
+    });
+
+    // Step 2: Direct transcode with ffmpeg to m4a (AAC)
+    await new Promise<void>((resolve, reject) => {
+      const ffProc = spawn('ffmpeg', [
+        '-y',
+        '-i', rawDownloadPath,
+        '-vn',
+        '-c:a', 'aac',
+        '-b:a', '192k',
+        outputPath,
+      ]);
+
+      let ffErr = '';
+      ffProc.stderr.on('data', (d) => { ffErr += d.toString(); });
+
+      ffProc.on('close', (code) => {
+        try { fs.unlinkSync(rawDownloadPath); } catch {}
+        if (code === 0 && fs.existsSync(outputPath)) {
+          resolve();
+        } else {
+          reject(new Error(`ffmpeg conversion failed with code ${code}: ${ffErr}`));
         }
       });
     });
@@ -118,8 +139,8 @@ export async function extractAndCacheAudio(videoId: string, metadata?: { title?:
 
     return outputPath;
   } catch (error: any) {
-    if (fs.existsSync(tempPath)) {
-      try { fs.unlinkSync(tempPath); } catch {}
+    if (fs.existsSync(rawDownloadPath)) {
+      try { fs.unlinkSync(rawDownloadPath); } catch {}
     }
     console.error(`Audio extraction failed for ${videoId}:`, error);
     throw error;
