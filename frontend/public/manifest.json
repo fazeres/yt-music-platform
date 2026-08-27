@@ -1,0 +1,15 @@
+{
+  "short_name": "YTMusic",
+  "name": "YouTube Music Personal Streamer",
+  "icons": [
+    {
+      "src": "/vite.svg",
+      "type": "image/svg+xml",
+      "sizes": "192x192 512x512"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#121212",
+  "theme_color": "#121212",
+  "display": "standalone"
+}

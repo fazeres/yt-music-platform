@@ -1,0 +1,54 @@
+import { Request, Response, NextFunction } from 'express';
+import jwt from 'jsonwebtoken';
+import { config, prisma } from '../config.js';
+
+export interface AuthPayload {
+  userId: string;
+  email: string;
+  sessionId: string;
+  deviceName: string;
+}
+
+export interface AuthenticatedRequest extends Request {
+  user?: AuthPayload;
+}
+
+export function signToken(payload: AuthPayload, expiresIn: string = '7d'): string {
+  return jwt.sign(payload, config.jwtSecret, { expiresIn });
+}
+
+export function verifyToken(token: string): AuthPayload {
+  return jwt.verify(token, config.jwtSecret) as AuthPayload;
+}
+
+export async function authMiddleware(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    res.status(401).json({ error: 'Unauthorized: Missing or invalid token format' });
+    return;
+  }
+
+  const token = authHeader.split(' ')[1];
+  try {
+    const payload = verifyToken(token);
+    
+    const session = await prisma.session.findUnique({
+      where: { token },
+    });
+
+    if (!session) {
+      res.status(401).json({ error: 'Unauthorized: Session revoked or expired' });
+      return;
+    }
+
+    await prisma.session.update({
+      where: { id: session.id },
+      data: { lastActiveAt: new Date() },
+    });
+
+    req.user = payload;
+    next();
+  } catch (err) {
+    res.status(401).json({ error: 'Unauthorized: Invalid token' });
+  }
+}

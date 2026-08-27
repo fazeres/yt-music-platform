@@ -1,0 +1,17 @@
+FROM node:20-alpine
+
+RUN apk add --no-cache ffmpeg python3 py3-pip curl && \
+    pip3 install --break-system-packages yt-dlp
+
+WORKDIR /app
+
+COPY package*.json pnpm-lock.yaml* ./
+COPY prisma ./prisma/
+
+RUN npm install -g pnpm && pnpm install
+
+COPY . .
+
+RUN pnpm prisma generate && pnpm build
+
+CMD ["node", "dist/worker/index.js"]

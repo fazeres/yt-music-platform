@@ -1,0 +1,82 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: ytmusic-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-ytmusic}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    container_name: ytmusic-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: ytmusic-api
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      PORT: 3000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-ytmusic}?schema=public
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET:-supersecret_jwt_key_for_dev_12345}
+      YOUTUBE_API_KEY: ${YOUTUBE_API_KEY:-}
+      AUDIO_CACHE_DIR: /app/audio_cache
+      CACHE_MAX_SIZE_MB: ${CACHE_MAX_SIZE_MB:-5120}
+    depends_on:
+      - postgres
+      - redis
+    volumes:
+      - audio_cache:/app/audio_cache
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    container_name: ytmusic-worker
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-ytmusic}?schema=public
+      REDIS_URL: redis://redis:6379
+      AUDIO_CACHE_DIR: /app/audio_cache
+      CACHE_MAX_SIZE_MB: ${CACHE_MAX_SIZE_MB:-5120}
+      YOUTUBE_API_KEY: ${YOUTUBE_API_KEY:-}
+    depends_on:
+      - postgres
+      - redis
+    volumes:
+      - audio_cache:/app/audio_cache
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: ytmusic-frontend
+    restart: unless-stopped
+    ports:
+      - "5173:5173"
+    environment:
+      VITE_API_URL: http://localhost:3000
+    depends_on:
+      - api
+
+volumes:
+  pgdata:
+  redisdata:
+  audio_cache:
