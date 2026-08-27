@@ -56,6 +56,7 @@ export const AudioEngine: React.FC = () => {
     seek,
     nextTrack,
     activeDeviceId,
+    setProgress,
   } = usePlayerStore();
   const user = useAuthStore((s) => s.user);
 
@@ -139,6 +140,8 @@ export const AudioEngine: React.FC = () => {
 
     const current = audio.currentTime;
     const duration = audio.duration || 0;
+
+    setProgress(current, duration);
 
     // Trigger crossfade / next song near end
     if (duration > 0 && crossfadeDuration > 0 && duration - current <= crossfadeDuration) {

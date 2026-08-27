@@ -39,6 +39,7 @@ interface PlayerState {
   activeDeviceName: string | null;
   socket: Socket | null;
 
+  setProgress: (progress: number, duration?: number) => void;
   // Actions
   initSocket: (token: string) => void;
   playTrack: (track: Track, newQueue?: Track[]) => Promise<void>;
@@ -67,6 +68,13 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   activeDeviceId: null,
   activeDeviceName: null,
   socket: null,
+
+  setProgress: (progress: number, duration?: number) => {
+    set({
+      progressSeconds: progress,
+      ...(duration && duration > 0 ? { durationSeconds: duration } : {}),
+    });
+  },
 
   initSocket: (token: string) => {
     const existingSocket = get().socket;

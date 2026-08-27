@@ -72,8 +72,8 @@ export const NowPlayingModal: React.FC<{
           <input
             type="range"
             min={0}
-            max={durationSeconds || 180}
-            value={progressSeconds}
+            max={durationSeconds > 0 ? durationSeconds : 180}
+            value={Math.floor(progressSeconds)}
             onChange={(e) => seek(parseFloat(e.target.value))}
             className="w-full h-1.5 bg-[#4d4d4d] rounded-lg appearance-none cursor-pointer accent-white hover:accent-spotify-green transition"
           />
