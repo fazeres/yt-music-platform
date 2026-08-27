@@ -4,7 +4,17 @@ import { config, prisma, redis } from '../config.js';
 import { extractAndCacheAudio, evictCacheIfNeeded, ensureCacheDir } from '../services/audio.js';
 import { ResolveJobData } from '../queue.js';
 
-const connection = new Redis(config.redisUrl, { maxRetriesPerRequest: null });
+const connection = new (Redis as any)(config.redisUrl, {
+  maxRetriesPerRequest: null,
+  retryStrategy(times: number) {
+    return Math.min(times * 100, 3000);
+  },
+});
+
+connection.on('error', (err: any) => {
+  console.warn('[Worker Redis Connection] Warning/retry:', err?.message || err);
+});
+
 
 export function startWorker() {
   console.log('[Worker] Starting audio extraction worker process...');

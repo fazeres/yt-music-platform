@@ -17,5 +17,23 @@ export const config = {
 };
 
 export const prisma = new PrismaClient();
-export const redis = new Redis(config.redisUrl, { maxRetriesPerRequest: null });
-export const redisSub = new Redis(config.redisUrl, { maxRetriesPerRequest: null });
+
+function createRedisClient(url: string) {
+  const client = new (Redis as any)(url, {
+    maxRetriesPerRequest: null,
+    retryStrategy(times: number) {
+      const delay = Math.min(times * 100, 3000);
+      return delay;
+    },
+  });
+
+  client.on('error', (err: any) => {
+    console.warn('[Redis] Connection warning/retry:', err?.message || err);
+  });
+
+  return client;
+}
+
+export const redis = createRedisClient(config.redisUrl);
+export const redisSub = createRedisClient(config.redisUrl);
+

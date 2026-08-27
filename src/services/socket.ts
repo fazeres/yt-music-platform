@@ -30,11 +30,11 @@ const userPlaybackStates = new Map<string, PlaybackState>();
 
 export function setupSocketServer(io: SocketIOServer) {
   // Subscribe to Redis events (track:ready, track:failed)
-  redisSub.subscribe('track:ready', 'track:failed', (err) => {
+  redisSub.subscribe('track:ready', 'track:failed', (err: any) => {
     if (err) console.error('Redis subscription error:', err);
   });
 
-  redisSub.on('message', (channel, message) => {
+  redisSub.on('message', (channel: string, message: string) => {
     try {
       const data = JSON.parse(message);
       if (channel === 'track:ready') {

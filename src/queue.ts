@@ -2,7 +2,17 @@ import { Queue } from 'bullmq';
 import { config } from './config.js';
 import Redis from 'ioredis';
 
-const connection = new Redis(config.redisUrl, { maxRetriesPerRequest: null });
+const connection = new (Redis as any)(config.redisUrl, {
+  maxRetriesPerRequest: null,
+  retryStrategy(times: number) {
+    return Math.min(times * 100, 3000);
+  },
+});
+
+connection.on('error', (err: any) => {
+  console.warn('[Redis Queue Connection] Warning/retry:', err?.message || err);
+});
+
 
 export interface ResolveJobData {
   videoId: string;
