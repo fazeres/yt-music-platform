@@ -13,8 +13,8 @@ export interface AuthenticatedRequest extends Request {
   user?: AuthPayload;
 }
 
-export function signToken(payload: AuthPayload, expiresIn: string = '7d'): string {
-  return jwt.sign(payload, config.jwtSecret, { expiresIn });
+export function signToken(payload: AuthPayload, expiresIn: string | number = '7d'): string {
+  return jwt.sign(payload, config.jwtSecret, { expiresIn: expiresIn as any });
 }
 
 export function verifyToken(token: string): AuthPayload {
